@@ -16,7 +16,7 @@ def boardStatusMES(SN):
     try:
         url = "http://10.72.16.235/jrwebservices/mes.asmx/"
         url += "GetBoardHistory?CustomerName=Honeywell&pstrSerialNo=" + SN + "&pSep="
-        print(SN)
+        # print(SN)
         with urllib.request.urlopen(url) as content:
             # print(content.read())
             root = ET.fromstring(content.read().decode('utf-8'))
@@ -43,7 +43,7 @@ def boardStatusMES(SN):
 
     except Exception as e:
         print(e)
-
+        # return 'Board OK'
 
 #----------------------------------------------------------------------
 # Check the board status inside the log file
@@ -77,24 +77,22 @@ def checkLogName(namelist, logpath, output, trash, fbdict, sn):
         return False
 
 #----------------------------------------------------------------------
-# Evalustes delta between the curent time and log time. Then using
-# time delta (900 sec) and serial number sends proper log (which are in time margin)
-# to output folder, the other ones go to Trash.
+# Evaluates time delta between the curent time and log time. Then using
+# time delta (900 sec) and serial number sends proper log (which are in
+# time margin) to output folder, the other ones go to Trash.
 
 def handleFailedLogs(sn, ltime, failedbrds, logpath, trash, outpath):
     curtime = datetime.now()
     logtime = datetime.strptime(ltime, "%Y%m%d%H%M%S")
     delta = (curtime - logtime).total_seconds()
+    dellog = False
     if delta > 900:
-        if sn in failedbrds.keys() and not failedbrds[sn]:
-            shutil.move(logpath, outpath)
-            del failedbrds[sn]
-            # print(failedbrds)
-        elif sn in failedbrds.keys() and failedbrds[sn]:
+        if sn in failedbrds.keys() and failedbrds[sn]:
             shutil.move(logpath, trash)
         else:
-            failedbrds[sn] = True
             shutil.move(logpath, outpath)
+            failedbrds[sn] = True
+
     elif delta <= 900:
         if sn not in failedbrds.keys():
             failedbrds[sn] = False
@@ -123,36 +121,21 @@ def clearDirectory(trash, logs):
 def checkFileExist(logname, outpath, trash):
     if os.path.exists(trash + '\\' + logname):
         os.remove(trash + '\\' + logname)
-        return True
+        return True, 'File already exist and was deleted from Trash'
     elif os.path.exists(outpath + '\\' + logname):
         os.remove(outpath + '\\' + logname)
-        return True
+        return True, 'File already exist and was deleted from Output'
     else:
-        return False
+        return False, 'OK'
+
+
 #--------------------------------------------------------------------------
-# Iterate through the buffer directory and move logs with the 'PASS' status
-# to main directory
-# def moveLogs(inpath, outpath, checkStatus):
-#     curtime = datetime.now()
-#     failed_boards = {}
-#
-#
-#     with os.scandir(inpath) as templogs:
-#         for entry in templogs:
-#             if not entry.name.startswith('.') and entry.is_file():
-#                 tempfnls = entry.name.split('_')
-#                 # print(tempfnls)
-#                 if 'PASS' in tempfnls[-1].split('.'):
-#                     shutil.move(entry.path, outpath)
-#                 elif 'FAIL' in tempfnls[-1].split('.'):
-#                     status = checkStatus(entry.path)
-#                     if not status:
-#                         shutil.move(entry.path, outpath)
-#                     elif status:
-#                         handleFailedLogs(entry.path, tempfnls, curtime, failed_boards, trash)
-#
-#         for sn in failed_boards.keys():
-#             status = selectMostRecent(sn, failed_boards)
-#             if status:
-#                 print(failed_boards[sn])
+# Remove unneccesary logs from dictionary
+def removeLogs(fbdict):
+    keys_to_remove = [key for key, value in fbdict.items() if value]
+    for item in keys_to_remove:
+        fbdict.pop(item, None)
+        print(str(item) + ' was deleted from dictionary')
+
 #---------------------------------------------------------------------------
+
