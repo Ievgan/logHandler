@@ -2,7 +2,7 @@ import os
 import time
 import shutil
 import configparser
-from Funclib import boardStatusMES, checkLogName, checkLogStatus, handleFailedLogs
+from Funclib import boardStatusMES, checkLogName, checkLogStatus, handleFailedLogs, checkFileExist, removeLogs
 
 # Initialize variables. Read values from 'settings.cfg'
 config = configparser.ConfigParser()
@@ -20,12 +20,17 @@ failedbrds = {}
 while True:
     # Check if logs are present in folder. If not, sleep 30 sec
     if not os.listdir(inpath):
-        print('Input directory is empty')
+        print('Input directory is empty', end='\n\n')
         time.sleep(wait)
     else:
-        # If yes, iterate through the list of files
+        # Iterate through the list of files
         with os.scandir(inpath) as logs:
             for entry in logs:
+                print(entry.name)
+                # Check if file already exists
+                file_exist = checkFileExist(entry.name, outpath, trash)
+                if file_exist[0]:
+                    print(file_exist[1])
                 # Check if the file has a proper type
                 if entry.name.endswith(ftype) and entry.is_file():
                     # Retrieve serial number and test time from log's name
@@ -33,8 +38,8 @@ while True:
                     sn = tempfnls[-2]
                     logtime = tempfnls[2] + tempfnls[3]
                     # Check board history in MES system
-                    result = boardStatusMES(sn)
-                    print(result)
+                    result = 'Board OK'       #boardStatusMES(sn)
+                    print(result, end='\n\n')
                     # If board has a proper status in MES then analyze log's name
                     if result == 'Board OK':
                         lognameok = checkLogName(tempfnls, entry.path, outpath, trash, failedbrds, sn)
@@ -46,4 +51,7 @@ while True:
                                 handleFailedLogs(sn, logtime, failedbrds, entry.path, trash, outpath)
                     else:
                         shutil.move(entry.path, trash)
+        # Remove unnecessary logs from dictionary and sleep
+        # print(failedbrds)
+        removeLogs(failedbrds)
         time.sleep(wait)
